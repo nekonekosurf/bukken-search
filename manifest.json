@@ -2,7 +2,7 @@
   "name": "物件サーチ",
   "short_name": "物件サーチ",
   "description": "地図・カメラ・家賃診断・割安物件・エリア相場の統合物件探索アプリ",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#1976D2",

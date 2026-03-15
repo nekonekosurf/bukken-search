@@ -1037,7 +1037,7 @@
     }
 
     document.addEventListener('mousemove', moveCrop);
-    document.addEventListener('touchmove', moveCrop, { passive: false });
+    cropCanvasWrapper.addEventListener('touchmove', moveCrop, { passive: false });
 
     function moveCrop(e) {
       if (!isCropping) return;

@@ -8,7 +8,7 @@ window.BukkenShared = (function () {
 
   // ---- 定数 ----
   const AREAS = ['新宿区', '渋谷区', '目黒区', '世田谷区', '中野区', '杉並区'];
-  const PLANS = ['1K', '1DK', '1LDK', '2K', '2DK', '2LDK'];
+  const PLANS = ['1K', '1DK', '1LDK', '2K', '2DK', '2LDK', '3K', '3DK', '3LDK'];
   const ERA_OFFSETS = { '令和': 2018, '平成': 1988, '昭和': 1925, '大正': 1911, '明治': 1867 };
   const CURRENT_YEAR = 2026;
 
@@ -34,6 +34,10 @@ window.BukkenShared = (function () {
         });
         _propertiesCache = data;
         return data;
+      })
+      .catch(function(err) {
+        console.error('物件データの読み込みに失敗:', err);
+        return [];
       });
     return _propertiesPromise;
   }
@@ -75,16 +79,13 @@ window.BukkenShared = (function () {
 
   // ---- 間取り正規化 ----
   function normalizePlan(plan) {
-    if (plan == null) return null;
-    plan = String(plan).trim().toUpperCase();
-    plan = plan.replace('SLDK', 'LDK').replace('SDK', 'DK').replace('SK', 'K').replace('SLK', 'LK');
-    var targets = ['1K', '1DK', '1LDK', '2K', '2DK', '2LDK'];
-    for (var i = 0; i < targets.length; i++) {
-      if (plan.indexOf(targets[i]) !== -1) return targets[i];
-    }
-    if (plan.indexOf('3K') !== -1 || plan.indexOf('3DK') !== -1 || plan.indexOf('3LDK') !== -1) {
-      return '2LDK';
-    }
+    if (!plan) return '';
+    plan = plan.trim().toUpperCase();
+    // S付きを除去
+    plan = plan.replace(/S/g, '');
+    // 数字+タイプの基本形に正規化
+    var m = plan.match(/(\d+)(K|DK|LDK)/);
+    if (m) return m[1] + m[2];
     return plan;
   }
 
@@ -121,6 +122,12 @@ window.BukkenShared = (function () {
     var size = FONT_SIZES[currentFontSizeIndex];
     document.documentElement.setAttribute('data-font-size', size);
     localStorage.setItem('font-size', size);
+    // トースト表示
+    var toast = document.createElement('div');
+    toast.textContent = '文字サイズ: ' + ['小', '中', '大'][currentFontSizeIndex];
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 20px;border-radius:20px;z-index:9999;font-size:14px;';
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 1500);
   }
 
   // ---- HTML エスケープ ----

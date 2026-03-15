@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bukken-search-v5';
+const CACHE_NAME = 'bukken-search-v6';
 const ASSETS = [
   './',
   'index.html',
@@ -48,7 +48,7 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
             return response;
           })
-          .catch(() => cached);
+          .catch(() => cached || new Response('[]', { headers: { 'Content-Type': 'application/json' }}));
       }
       return cached || fetch(event.request);
     })

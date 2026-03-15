@@ -35,7 +35,35 @@
     { name: '祖師ヶ谷大蔵', lat: 35.6453, lng: 139.6147 },
     { name: '学芸大学', lat: 35.6284, lng: 139.6851 },
     { name: '都立大学', lat: 35.6185, lng: 139.6821 },
-    { name: '吉祥寺', lat: 35.7032, lng: 139.5794 }
+    { name: '吉祥寺', lat: 35.7032, lng: 139.5794 },
+    // 新宿区
+    { name: '新宿三丁目', lat: 35.6899, lng: 139.7050 },
+    { name: '新大久保', lat: 35.7012, lng: 139.7001 },
+    { name: '西新宿', lat: 35.6946, lng: 139.6915 },
+    { name: '東新宿', lat: 35.6976, lng: 139.7070 },
+    // 渋谷区
+    { name: '代官山', lat: 35.6486, lng: 139.7030 },
+    { name: '恵比寿', lat: 35.6467, lng: 139.7100 },
+    { name: '原宿', lat: 35.6702, lng: 139.7026 },
+    { name: '神泉', lat: 35.6558, lng: 139.6938 },
+    // 目黒区
+    { name: '祐天寺', lat: 35.6385, lng: 139.6886 },
+    { name: '自由が丘', lat: 35.6074, lng: 139.6688 },
+    // 世田谷区
+    { name: '桜新町', lat: 35.6326, lng: 139.6452 },
+    { name: '用賀', lat: 35.6269, lng: 139.6347 },
+    { name: '二子玉川', lat: 35.6115, lng: 139.6262 },
+    { name: '豪徳寺', lat: 35.6546, lng: 139.6484 },
+    // 中野区
+    { name: '東中野', lat: 35.6999, lng: 139.6824 },
+    { name: '中野坂上', lat: 35.6970, lng: 139.6780 },
+    { name: '新中野', lat: 35.6930, lng: 139.6650 },
+    { name: '方南町', lat: 35.6830, lng: 139.6530 },
+    // 杉並区
+    { name: '新高円寺', lat: 35.6960, lng: 139.6475 },
+    { name: '南阿佐ヶ谷', lat: 35.6920, lng: 139.6355 },
+    { name: '西荻窪', lat: 35.7030, lng: 139.5993 },
+    { name: '永福町', lat: 35.6746, lng: 139.6395 }
   ];
 
   // チュートリアルステップ
@@ -136,6 +164,7 @@
     clusterGroup.clearLayers();
 
     properties.forEach(p => {
+      if (p.latitude == null || p.longitude == null) return;
       const rentMan = p.rent_man;
       const color = RENT_COLORS.find(c => rentMan >= c.min && rentMan < c.max) || RENT_COLORS[3];
 
@@ -662,7 +691,7 @@
 
     filteredProperties = allProperties.filter(p => {
       if (p.rent_man < rentMin || p.rent_man > rentMax) return false;
-      if (p.station_distance_min !== null && p.station_distance_min > walkMax) return false;
+      if (p.station_distance_min != null && p.station_distance_min > walkMax) return false;
       if (checkedPlans.length > 0 && !checkedPlans.includes(p.floor_plan_norm || p.floor_plan)) return false;
       if (checkedAreas.length > 0 && !checkedAreas.includes(p.municipality)) return false;
 
