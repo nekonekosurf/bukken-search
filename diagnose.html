@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>家賃診断 - 物件サーチ</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+  <!-- ヘッダー -->
+  <header class="header page-header">
+    <h1>物件サーチ</h1>
+    <div class="header-actions">
+      <button id="btn-font-size" class="header-btn font-size-btn" title="フォントサイズ切替">Aa</button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="page-content">
+    <div class="page-title-bar">
+      <span class="page-title-icon">&#x1F4B0;</span>
+      <h2 class="page-title">家賃診断</h2>
+    </div>
+    <p class="page-subtitle">物件情報を入力すると、相場と比べて割安か割高か判定します</p>
+
+    <!-- 入力フォーム -->
+    <div class="form-card">
+      <div class="form-group">
+        <label for="diag-area">エリア</label>
+        <select id="diag-area" class="form-select">
+          <option value="新宿区">新宿区</option>
+          <option value="渋谷区">渋谷区</option>
+          <option value="目黒区">目黒区</option>
+          <option value="世田谷区">世田谷区</option>
+          <option value="中野区">中野区</option>
+          <option value="杉並区">杉並区</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="diag-rent">家賃（万円）</label>
+          <input type="number" id="diag-rent" class="form-input" value="13" min="5" max="30" step="0.1">
+        </div>
+        <div class="form-group">
+          <label for="diag-fee">管理費（円）</label>
+          <input type="number" id="diag-fee" class="form-input" value="0" min="0" max="30000" step="100">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="diag-area-size">面積（m&sup2;）</label>
+          <input type="number" id="diag-area-size" class="form-input" value="30" min="10" max="100" step="0.5">
+        </div>
+        <div class="form-group">
+          <label for="diag-age">築年数</label>
+          <input type="number" id="diag-age" class="form-input" value="10" min="0" max="60" step="1">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="diag-walk">駅徒歩（分）</label>
+          <input type="number" id="diag-walk" class="form-input" value="7" min="1" max="30" step="1">
+        </div>
+        <div class="form-group">
+          <label for="diag-floor">階数</label>
+          <input type="number" id="diag-floor" class="form-input" value="3" min="1" max="30" step="1">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="diag-plan">間取り</label>
+        <select id="diag-plan" class="form-select">
+          <option value="1K">1K</option>
+          <option value="1DK">1DK</option>
+          <option value="1LDK" selected>1LDK</option>
+          <option value="2K">2K</option>
+          <option value="2DK">2DK</option>
+          <option value="2LDK">2LDK</option>
+        </select>
+      </div>
+
+      <button id="diag-btn" class="btn-primary">診断する</button>
+    </div>
+
+    <!-- 結果表示エリア -->
+    <div id="diag-result" class="result-area">
+      <div class="result-placeholder">上のフォームに物件情報を入力して「診断する」を押してください。</div>
+    </div>
+  </main>
+
+  <!-- 固定タブバー -->
+  <nav class="tab-bar tab-bar-5">
+    <a href="index.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F5FA;</span>
+      <span class="tab-label">地図</span>
+    </a>
+    <a href="ocr.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4F7;</span>
+      <span class="tab-label">カメラ</span>
+    </a>
+    <a href="diagnose.html" class="tab-bar-item active">
+      <span class="tab-icon">&#x1F4B0;</span>
+      <span class="tab-label">診断</span>
+    </a>
+    <a href="deals.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F525;</span>
+      <span class="tab-label">お得</span>
+    </a>
+    <a href="market.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4CA;</span>
+      <span class="tab-label">相場</span>
+    </a>
+  </nav>
+
+  <!-- 共通JS -->
+  <script src="js/shared.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var S = window.BukkenShared;
+
+    // フォントサイズ初期化
+    S.initFontSize();
+    var btnFont = document.getElementById('btn-font-size');
+    if (btnFont) btnFont.addEventListener('click', S.cycleFontSize);
+
+    var allProperties = [];
+
+    // データ読み込み
+    S.loadProperties().then(function (data) {
+      allProperties = data;
+    });
+
+    // パーセンタイル計算
+    function percentile(arr, p) {
+      if (!arr || arr.length === 0) return null;
+      var sorted = arr.slice().sort(function (a, b) { return a - b; });
+      var idx = (p / 100) * (sorted.length - 1);
+      var lower = Math.floor(idx);
+      var upper = Math.ceil(idx);
+      if (lower === upper) return sorted[lower];
+      return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
+    }
+
+    // 診断ボタン
+    document.getElementById('diag-btn').addEventListener('click', function () {
+      var area = document.getElementById('diag-area').value;
+      var rentMan = parseFloat(document.getElementById('diag-rent').value);
+      var fee = parseInt(document.getElementById('diag-fee').value, 10) || 0;
+      var floorArea = parseFloat(document.getElementById('diag-area-size').value);
+      var age = parseInt(document.getElementById('diag-age').value, 10);
+      var walk = parseInt(document.getElementById('diag-walk').value, 10);
+      var plan = document.getElementById('diag-plan').value;
+      var floor = parseInt(document.getElementById('diag-floor').value, 10);
+
+      // バリデーション
+      if (isNaN(rentMan) || rentMan <= 0) { alert('家賃を正の値で入力してください。'); return; }
+      if (isNaN(floorArea) || floorArea <= 0) { alert('面積を正の値で入力してください。'); return; }
+      if (isNaN(age) || age < 0) { alert('築年数を0以上で入力してください。'); return; }
+      if (isNaN(walk) || walk <= 0) { alert('駅徒歩を正の値で入力してください。'); return; }
+
+      var feeValue = fee || 0;
+      var inputRent = rentMan * 10000 + feeValue;
+
+      // 同条件の物件を抽出: 同じ区 + 面積+-10m2 + 築年数+-5年
+      var similar = allProperties.filter(function (p) {
+        if (p.municipality !== area) return false;
+        if (p.total_floor_area == null) return false;
+        if (Math.abs(p.total_floor_area - floorArea) > 10) return false;
+        if (p.building_age != null && Math.abs(p.building_age - age) > 5) return false;
+        if (p.monthly_rent == null || p.monthly_rent <= 0) return false;
+        return true;
+      });
+
+      // 同じ間取りでさらに絞り込み（5件未満なら間取り条件を外す）
+      var similarPlan = similar.filter(function (p) {
+        return p.floor_plan_norm === plan;
+      });
+      if (similarPlan.length >= 5) {
+        similar = similarPlan;
+      }
+
+      if (similar.length < 3) {
+        // データ不足の場合は条件を緩和: 同区 + 同間取り
+        similar = allProperties.filter(function (p) {
+          return p.municipality === area && p.floor_plan_norm === plan
+            && p.monthly_rent != null && p.monthly_rent > 0;
+        });
+      }
+
+      if (similar.length === 0) {
+        document.getElementById('diag-result').innerHTML =
+          '<div class="result-card"><p class="result-error">該当条件のデータが不足しています。</p></div>';
+        return;
+      }
+
+      // 中央値計算
+      var rents = similar.map(function (p) { return p.monthly_rent; });
+      var medianRent = S.median(rents);
+
+      // 面積補正
+      var areas = similar.filter(function (p) { return p.total_floor_area != null; })
+                         .map(function (p) { return p.total_floor_area; });
+      var medianArea = S.median(areas);
+      var areaAdj = 0;
+      if (medianArea && medianArea > 0) {
+        var unitPrice = medianRent / medianArea;
+        areaAdj = (floorArea - medianArea) * unitPrice * 0.6;
+      }
+
+      // 築年数補正
+      var ages = similar.filter(function (p) { return p.building_age != null; })
+                        .map(function (p) { return p.building_age; });
+      var medianAge = S.median(ages);
+      var ageAdj = 0;
+      if (medianAge != null) {
+        ageAdj = -(age - medianAge) * medianRent * 0.005;
+      }
+
+      // 駅徒歩補正
+      var walks = similar.filter(function (p) { return p.station_distance_min != null; })
+                         .map(function (p) { return p.station_distance_min; });
+      var medianWalk = S.median(walks);
+      var walkAdj = 0;
+      if (medianWalk != null) {
+        walkAdj = -(walk - medianWalk) * medianRent * 0.005;
+      }
+
+      // 階数補正
+      var floors = similar.filter(function (p) { return p.floor_level != null; })
+                          .map(function (p) { return p.floor_level; });
+      var medianFloor = S.median(floors);
+      var floorAdj = 0;
+      if (medianFloor != null) {
+        floorAdj = (floor - medianFloor) * medianRent * 0.003;
+      }
+
+      var predicted = medianRent + areaAdj + ageAdj + walkAdj + floorAdj;
+      predicted = Math.max(predicted, medianRent * 0.5);
+
+      var diff = inputRent - predicted;
+      var diffMan = diff / 10000;
+      var diffPct = (diff / predicted) * 100;
+
+      // 判定
+      var badgeText, badgeClass, badgeDetail;
+      if (diffPct < -8) {
+        badgeText = '割安'; badgeClass = 'badge-bargain'; badgeDetail = '相場より大幅に安い物件です';
+      } else if (diffPct < -3) {
+        badgeText = 'やや割安'; badgeClass = 'badge-slight-bargain'; badgeDetail = '相場よりやや安い物件です';
+      } else if (diffPct <= 3) {
+        badgeText = '適正'; badgeClass = 'badge-fair'; badgeDetail = '相場通りの価格です';
+      } else if (diffPct <= 8) {
+        badgeText = 'やや割高'; badgeClass = 'badge-slight-pricey'; badgeDetail = '相場よりやや高い物件です';
+      } else {
+        badgeText = '割高'; badgeClass = 'badge-pricey'; badgeDetail = '相場より高い物件です';
+      }
+
+      var diffColor = diff >= 0 ? '#e53935' : '#2e7d32';
+      var diffSign = diff >= 0 ? '+' : '';
+
+      var html = '<div class="result-card">';
+      // バッジ
+      html += '<div class="result-badge-row">';
+      html += '<span class="result-badge ' + badgeClass + '">' + badgeText + '</span>';
+      html += '<span class="result-badge-detail">' + badgeDetail + '</span>';
+      html += '</div>';
+
+      // 数値比較
+      html += '<div class="result-compare">';
+      html += '<div class="result-compare-item">';
+      html += '<span class="result-compare-label">予測適正家賃</span>';
+      html += '<span class="result-compare-value">' + (predicted / 10000).toFixed(2) + '<small>万円</small></span>';
+      html += '</div>';
+      html += '<div class="result-compare-item">';
+      html += '<span class="result-compare-label">入力家賃</span>';
+      html += '<span class="result-compare-value">' + rentMan.toFixed(2) + '<small>万円</small></span>';
+      html += '</div>';
+      html += '<div class="result-compare-item">';
+      html += '<span class="result-compare-label">差額</span>';
+      html += '<span class="result-compare-value" style="color:' + diffColor + '">' + diffSign + diffMan.toFixed(2) + '<small>万円 (' + diffSign + diffPct.toFixed(1) + '%)</small></span>';
+      html += '</div>';
+      html += '</div>';
+
+      // 比較物件数
+      html += '<div class="result-note">比較物件数: ' + similar.length + '件（' + area + '・類似条件）</div>';
+
+      // 家賃分布（min/25%/median/75%/max）
+      var pMin = percentile(rents, 0);
+      var p25 = percentile(rents, 25);
+      var pMed = percentile(rents, 50);
+      var p75 = percentile(rents, 75);
+      var pMax = percentile(rents, 100);
+
+      html += '<div class="result-dist">';
+      html += '<div class="result-dist-title">類似物件の家賃分布</div>';
+      html += '<div class="result-dist-row"><span class="result-dist-label">最小値</span><span class="result-dist-value">' + (pMin / 10000).toFixed(2) + '万円</span></div>';
+      html += '<div class="result-dist-row"><span class="result-dist-label">25%</span><span class="result-dist-value">' + (p25 / 10000).toFixed(2) + '万円</span></div>';
+      html += '<div class="result-dist-row"><span class="result-dist-label">中央値</span><span class="result-dist-value">' + (pMed / 10000).toFixed(2) + '万円</span></div>';
+      html += '<div class="result-dist-row"><span class="result-dist-label">75%</span><span class="result-dist-value">' + (p75 / 10000).toFixed(2) + '万円</span></div>';
+      html += '<div class="result-dist-row"><span class="result-dist-label">最大値</span><span class="result-dist-value">' + (pMax / 10000).toFixed(2) + '万円</span></div>';
+      html += '</div>';
+
+      html += '</div>';
+
+      document.getElementById('diag-result').innerHTML = html;
+    });
+  })();
+  </script>
+</body>
+</html>

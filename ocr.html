@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>物件サーチ</title>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+
+  <!-- Tesseract.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+    /* ---- OCR page body overrides ---- */
+    html, body {
+      min-height: 100%;
+      min-height: 100dvh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      height: auto;
+    }
+
+    /* ---- Header overrides for OCR page ---- */
+    .header {
+      position: sticky;
+      gap: 8px;
+    }
+
+    .header h1 {
+      flex: 1;
+    }
+
+    /* ---- Main ---- */
+    .main {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+
+    /* ---- Guide message (#7) ---- */
+    .guide-message {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #e3f2fd;
+      border: 1px solid #bbdefb;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      font-size: calc(13px * var(--font-scale));
+      color: #1565C0;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    .guide-message .guide-icon {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    /* ---- Capture section ---- */
+    .capture-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .capture-btn {
+      width: 100%;
+      padding: 28px 0;
+      border: 2px dashed #90caf9;
+      border-radius: 16px;
+      background: #e3f2fd;
+      color: #1976D2;
+      font-size: calc(18px * var(--font-scale));
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .capture-btn:hover {
+      background: #bbdefb;
+      border-color: #64b5f6;
+    }
+
+    .capture-btn:active {
+      transform: scale(0.97);
+    }
+
+    .capture-btn .icon {
+      font-size: 40px;
+    }
+
+    .capture-btn .sub {
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 400;
+      color: #64748b;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    /* ---- Toggle switch ---- */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-label {
+      font-size: calc(13px * var(--font-scale));
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #1976D2;
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+    }
+
+    /* ---- Preview ---- */
+    .preview-container {
+      display: none;
+      width: 100%;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .preview-container.visible {
+      display: block;
+    }
+
+    .preview-img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #e2e8f0;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .preview-action-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      border-radius: 12px;
+      font-size: calc(14px * var(--font-scale));
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .preview-action-btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-crop {
+      background: #f59e0b;
+      color: #fff;
+    }
+
+    .btn-crop:hover {
+      background: #d97706;
+    }
+
+    .btn-retake {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .btn-retake:hover {
+      background: #e2e8f0;
+    }
+
+    /* ---- Crop overlay ---- */
+    .crop-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 2000;
+      background: rgba(0, 0, 0, 0.92);
+      flex-direction: column;
+    }
+
+    .crop-overlay.visible {
+      display: flex;
+    }
+
+    .crop-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .crop-header-title {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 600;
+    }
+
+    .crop-header-btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 12px;
+      font-size: calc(14px * var(--font-scale));
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .crop-cancel-btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    .crop-confirm-btn {
+      background: #1976D2;
+      color: #fff;
+    }
+
+    .crop-canvas-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .crop-canvas-wrapper canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .crop-rect {
+      position: absolute;
+      border: 2px solid #42a5f5;
+      background: rgba(66, 165, 245, 0.1);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .crop-instruction {
+      text-align: center;
+      padding: 8px;
+      color: rgba(255,255,255,0.7);
+      font-size: calc(13px * var(--font-scale));
+      flex-shrink: 0;
+    }
+
+    /* ---- Progress (#7 改善) ---- */
+    .progress-container {
+      display: none;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .progress-container.visible {
+      display: block;
+    }
+
+    .progress-label {
+      font-size: calc(16px * var(--font-scale));
+      color: #1976D2;
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #42a5f5, #1976D2);
+      border-radius: 6px;
+      transition: width 0.2s;
+    }
+
+    .progress-step {
+      font-size: calc(12px * var(--font-scale));
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* ---- OCR失敗時の手動入力フォールバック (#7) ---- */
+    .ocr-fallback {
+      display: none;
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 16px;
+      background: #fff3e0;
+      border: 1px solid #ffe0b2;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .ocr-fallback.visible {
+      display: block;
+    }
+
+    .ocr-fallback-title {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      color: #e65100;
+      margin-bottom: 8px;
+    }
+
+    .ocr-fallback-text {
+      font-size: calc(13px * var(--font-scale));
+      color: #bf360c;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .ocr-fallback-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 12px;
+      background: #f57c00;
+      color: #fff;
+      font-size: calc(14px * var(--font-scale));
+      font-weight: 700;
+      cursor: pointer;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .ocr-fallback-btn:active {
+      background: #e65100;
+    }
+
+    /* ---- OCR result / search ---- */
+    .search-section {
+      display: none;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .search-section.visible {
+      display: block;
+    }
+
+    .search-section label {
+      display: block;
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+
+    .search-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: calc(16px * var(--font-scale));
+      font-family: inherit;
+      color: #1e293b;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+      min-height: 48px;
+    }
+
+    .search-input:focus {
+      border-color: #1976D2;
+    }
+
+    .search-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 12px;
+      background: #1976D2;
+      color: #fff;
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .search-btn:hover {
+      background: #1565C0;
+    }
+
+    .search-btn:active {
+      transform: scale(0.96);
+    }
+
+    .hint {
+      text-align: center;
+      font-size: calc(12px * var(--font-scale));
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+
+    /* ---- Results ---- */
+    .results-section {
+      display: none;
+      width: 100%;
+    }
+
+    .results-section.visible {
+      display: block;
+    }
+
+    .results-header {
+      font-size: calc(13px * var(--font-scale));
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    /* ---- Property card ---- */
+    .property-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border: 1px solid #f1f5f9;
+    }
+
+    .property-name {
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .property-rent {
+      font-size: calc(24px * var(--font-scale));
+      font-weight: 800;
+      color: #e53935;
+      margin-bottom: 8px;
+    }
+
+    .property-rent .unit {
+      font-size: calc(13px * var(--font-scale));
+      font-weight: 500;
+      color: #64748b;
+    }
+
+    .property-rent .fee {
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 400;
+      color: #94a3b8;
+      margin-left: 6px;
+    }
+
+    .property-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      margin-bottom: 12px;
+      font-size: calc(13px * var(--font-scale));
+    }
+
+    .property-details .detail-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .property-details .detail-label {
+      color: #94a3b8;
+    }
+
+    .property-details .detail-value {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .property-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 14px 0;
+      background: #1976D2;
+      border-radius: 12px;
+      color: #fff;
+      text-decoration: none;
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      transition: background 0.2s;
+      min-height: 48px;
+    }
+
+    .property-link:hover {
+      background: #1565C0;
+    }
+
+    /* ---- No results ---- */
+    .no-results {
+      text-align: center;
+      padding: 24px 16px;
+    }
+
+    .no-results-text {
+      font-size: calc(14px * var(--font-scale));
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+
+    .ddg-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      background: #f97316;
+      color: #fff;
+      font-size: calc(15px * var(--font-scale));
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .ddg-btn:hover {
+      background: #ea580c;
+    }
+
+    /* ---- Footer / access info ---- */
+    .footer-info {
+      margin-top: 32px;
+      padding: 16px;
+      background: #f1f5f9;
+      border-radius: 12px;
+      font-size: calc(13px * var(--font-scale));
+      color: #475569;
+      line-height: 1.8;
+    }
+
+    .footer-info-title {
+      font-weight: 700;
+      font-size: calc(14px * var(--font-scale));
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+
+    .footer-info code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: calc(12px * var(--font-scale));
+      word-break: break-all;
+    }
+
+    .footer-info ol {
+      padding-left: 20px;
+    }
+
+    .footer-info li {
+      margin-bottom: 4px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <h1>物件サーチ</h1>
+    <div class="header-actions">
+      <button class="header-btn" id="btn-font-size" title="フォントサイズ切替">Aa</button>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- ガイドメッセージ (#7) -->
+    <div class="guide-message" id="guide-message">
+      <span class="guide-icon">&#x1F3E2;</span>
+      <span>建物の看板を撮影してください。建物名からデータベースの物件情報を検索します。</span>
+    </div>
+
+    <!-- Capture -->
+    <div class="capture-area" id="capture-area">
+      <button class="capture-btn" id="btn-capture">
+        <span class="icon">&#x1F4F7;</span>
+        <span>看板を撮影 / 写真を選択</span>
+        <span class="sub">建物名が書かれた看板を撮影してください</span>
+      </button>
+      <input type="file" id="file-input" accept="image/*" capture="environment">
+    </div>
+
+    <!-- Preprocessing toggle -->
+    <div class="toggle-row">
+      <span class="toggle-label">画像前処理（OCR精度向上）</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="preprocess-toggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-container" id="preview-container">
+      <img class="preview-img" id="preview-img" alt="撮影した画像">
+      <div class="preview-actions">
+        <button class="preview-action-btn btn-crop" id="btn-crop">&#x2702; トリミング</button>
+        <button class="preview-action-btn btn-retake" id="btn-retake">&#x1F504; もう一度撮影</button>
+      </div>
+    </div>
+
+    <!-- Crop overlay -->
+    <div class="crop-overlay" id="crop-overlay">
+      <div class="crop-header">
+        <button class="crop-header-btn crop-cancel-btn" id="crop-cancel">キャンセル</button>
+        <span class="crop-header-title">範囲を選択</span>
+        <button class="crop-header-btn crop-confirm-btn" id="crop-confirm">OCR実行</button>
+      </div>
+      <div class="crop-canvas-wrapper" id="crop-canvas-wrapper">
+        <canvas id="crop-canvas"></canvas>
+        <div class="crop-rect" id="crop-rect"></div>
+      </div>
+      <div class="crop-instruction">指でドラッグして読み取る範囲を選択してください</div>
+    </div>
+
+    <!-- Progress (#7 改善) -->
+    <div class="progress-container" id="progress-container">
+      <div class="progress-label" id="progress-label">文字認識中... 0%</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+      <div class="progress-step" id="progress-step"></div>
+    </div>
+
+    <!-- OCR失敗時のフォールバック (#7) -->
+    <div class="ocr-fallback" id="ocr-fallback">
+      <div class="ocr-fallback-title">文字の認識に失敗しました</div>
+      <div class="ocr-fallback-text">看板の文字がうまく読み取れませんでした。<br>建物名を手動で入力して検索できます。</div>
+      <button class="ocr-fallback-btn" id="btn-manual-input">手動で入力する</button>
+    </div>
+
+    <!-- Search -->
+    <div class="search-section" id="search-section">
+      <label for="search-input">読み取り結果（編集して検索できます）</label>
+      <div class="search-input-row">
+        <input type="text" class="search-input" id="search-input" placeholder="建物名を入力...">
+        <button class="search-btn" id="btn-search">検索</button>
+      </div>
+      <div class="hint">OCRの読み取り結果を修正してから検索できます</div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="results-section"></div>
+
+    <!-- Footer: access info -->
+    <div class="footer-info" id="footer-info">
+      <div class="footer-info-title">&#x1F4F1; スマホからのアクセス方法</div>
+      <ol>
+        <li>PCと同じWi-Fiに接続</li>
+        <li>ブラウザで <code id="access-url">http://[PCのIP]:8053/ocr.html</code> を開く</li>
+        <li>共有 → 「ホーム画面に追加」でアプリ化</li>
+      </ol>
+    </div>
+
+  </div>
+
+  <!-- 固定タブバー (#1) -->
+  <nav class="tab-bar tab-bar-5">
+    <a href="index.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F5FA;</span>
+      <span class="tab-label">地図</span>
+    </a>
+    <a href="ocr.html" class="tab-bar-item active">
+      <span class="tab-icon">&#x1F4F7;</span>
+      <span class="tab-label">カメラ</span>
+    </a>
+    <a href="diagnose.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4B0;</span>
+      <span class="tab-label">診断</span>
+    </a>
+    <a href="deals.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F525;</span>
+      <span class="tab-label">お得</span>
+    </a>
+    <a href="market.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4CA;</span>
+      <span class="tab-label">相場</span>
+    </a>
+  </nav>
+
+  <script src="js/shared.js"></script>
+  <script>
+    // =========================================
+    // フォントサイズ初期化 (shared.js使用)
+    // =========================================
+    const S = window.BukkenShared;
+    S.initFontSize();
+
+    const btnFontSize = document.getElementById('btn-font-size');
+    if (btnFontSize) {
+      btnFontSize.addEventListener('click', S.cycleFontSize);
+    }
+
+    // =========================================
+    // DOM elements
+    // =========================================
+    const btnCapture = document.getElementById('btn-capture');
+    const fileInput = document.getElementById('file-input');
+    const previewContainer = document.getElementById('preview-container');
+    const previewImg = document.getElementById('preview-img');
+    const progressContainer = document.getElementById('progress-container');
+    const progressLabel = document.getElementById('progress-label');
+    const progressBar = document.getElementById('progress-bar');
+    const progressStep = document.getElementById('progress-step');
+    const searchSection = document.getElementById('search-section');
+    const searchInput = document.getElementById('search-input');
+    const btnSearch = document.getElementById('btn-search');
+    const resultsSection = document.getElementById('results-section');
+    const btnRetake = document.getElementById('btn-retake');
+    const btnCrop = document.getElementById('btn-crop');
+    const preprocessToggle = document.getElementById('preprocess-toggle');
+    const guideMessage = document.getElementById('guide-message');
+    const ocrFallback = document.getElementById('ocr-fallback');
+    const btnManualInput = document.getElementById('btn-manual-input');
+
+    // Crop elements
+    const cropOverlay = document.getElementById('crop-overlay');
+    const cropCanvas = document.getElementById('crop-canvas');
+    const cropCanvasWrapper = document.getElementById('crop-canvas-wrapper');
+    const cropRect = document.getElementById('crop-rect');
+    const cropCancel = document.getElementById('crop-cancel');
+    const cropConfirm = document.getElementById('crop-confirm');
+
+    // State
+    let currentImageData = null;   // original image data URL
+    let currentImageEl = null;     // loaded Image element
+
+    // =========================================
+    // Properties data (shared.js使用)
+    // =========================================
+    let properties = [];
+
+    S.loadProperties().then(function (data) {
+      properties = data;
+      console.log(`物件データ読み込み完了: ${properties.length}件`);
+    });
+
+    // =========================================
+    // Auto-detect IP for footer
+    // =========================================
+    (function detectIP() {
+      const host = location.hostname;
+      const port = location.port || '8053';
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        document.getElementById('access-url').textContent = `http://${host}:${port}/ocr.html`;
+      } else {
+        // Try to show useful info
+        document.getElementById('access-url').textContent = `http://[PCのIPアドレス]:${port}/ocr.html`;
+      }
+    })();
+
+    // =========================================
+    // PWA Service Worker registration
+    // =========================================
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => {
+        console.log('SW registration failed:', err);
+      });
+    }
+
+    // =========================================
+    // OCR失敗時の手動入力フォールバック (#7)
+    // =========================================
+    btnManualInput.addEventListener('click', () => {
+      ocrFallback.classList.remove('visible');
+      searchSection.classList.add('visible');
+      searchInput.value = '';
+      searchInput.focus();
+    });
+
+    // =========================================
+    // Capture / file selection
+    // =========================================
+    btnCapture.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    btnRetake.addEventListener('click', () => {
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // ガイドメッセージを非表示
+      if (guideMessage) guideMessage.style.display = 'none';
+      // フォールバックを非表示
+      ocrFallback.classList.remove('visible');
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        currentImageData = ev.target.result;
+
+        // Load into an Image element for preprocessing
+        const img = new Image();
+        img.onload = () => {
+          currentImageEl = img;
+          previewImg.src = currentImageData;
+          previewContainer.classList.add('visible');
+          resultsSection.classList.remove('visible');
+          resultsSection.innerHTML = '';
+
+          // Auto-run OCR
+          const imageToOCR = preprocessToggle.checked
+            ? preprocessImage(img)
+            : currentImageData;
+          runOCR(imageToOCR);
+        };
+        img.src = currentImageData;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // =========================================
+    // Image preprocessing for OCR accuracy
+    // =========================================
+    function preprocessImage(imageElement) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Scale up for OCR accuracy (target ~1500px on longest side)
+      const scale = Math.max(1, 1500 / Math.max(imageElement.naturalWidth || imageElement.width, imageElement.naturalHeight || imageElement.height));
+      const w = (imageElement.naturalWidth || imageElement.width) * scale;
+      const h = (imageElement.naturalHeight || imageElement.height) * scale;
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(imageElement, 0, 0, w, h);
+
+      // Grayscale conversion
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+
+      // Otsu's threshold (simplified)
+      // Compute histogram
+      const histogram = new Array(256).fill(0);
+      for (let i = 0; i < data.length; i += 4) {
+        histogram[data[i]]++;
+      }
+      const totalPixels = data.length / 4;
+
+      // Otsu's method
+      let sumAll = 0;
+      for (let i = 0; i < 256; i++) sumAll += i * histogram[i];
+
+      let sumB = 0, wB = 0, wF = 0;
+      let maxVariance = 0;
+      let threshold = 128;
+
+      for (let t = 0; t < 256; t++) {
+        wB += histogram[t];
+        if (wB === 0) continue;
+        wF = totalPixels - wB;
+        if (wF === 0) break;
+
+        sumB += t * histogram[t];
+        const mB = sumB / wB;
+        const mF = (sumAll - sumB) / wF;
+        const variance = wB * wF * (mB - mF) * (mB - mF);
+
+        if (variance > maxVariance) {
+          maxVariance = variance;
+          threshold = t;
+        }
+      }
+
+      // Apply binarization with Otsu threshold
+      for (let i = 0; i < data.length; i += 4) {
+        const val = data[i] > threshold ? 255 : 0;
+        data[i] = data[i + 1] = data[i + 2] = val;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      return canvas.toDataURL();
+    }
+
+    // =========================================
+    // Crop functionality
+    // =========================================
+    let cropStartX = 0, cropStartY = 0, cropEndX = 0, cropEndY = 0;
+    let isCropping = false;
+    let canvasDisplayRect = null;
+
+    btnCrop.addEventListener('click', () => {
+      if (!currentImageEl) return;
+      openCropOverlay();
+    });
+
+    function openCropOverlay() {
+      cropOverlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+
+      const ctx = cropCanvas.getContext('2d');
+      const wrapperRect = cropCanvasWrapper.getBoundingClientRect();
+
+      // Fit image into wrapper
+      const imgW = currentImageEl.naturalWidth || currentImageEl.width;
+      const imgH = currentImageEl.naturalHeight || currentImageEl.height;
+      const fitScale = Math.min(wrapperRect.width / imgW, wrapperRect.height / imgH, 1);
+
+      cropCanvas.width = imgW * fitScale;
+      cropCanvas.height = imgH * fitScale;
+      ctx.drawImage(currentImageEl, 0, 0, cropCanvas.width, cropCanvas.height);
+
+      // Reset crop rect
+      cropRect.style.display = 'none';
+      isCropping = false;
+
+      // Need to get canvas position after it's rendered
+      requestAnimationFrame(() => {
+        canvasDisplayRect = cropCanvas.getBoundingClientRect();
+      });
+    }
+
+    function closeCropOverlay() {
+      cropOverlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    cropCancel.addEventListener('click', closeCropOverlay);
+
+    // Touch/mouse events for crop selection
+    function getEventPos(e) {
+      const touch = e.touches ? e.touches[0] : e;
+      return { x: touch.clientX, y: touch.clientY };
+    }
+
+    cropCanvasWrapper.addEventListener('mousedown', startCrop);
+    cropCanvasWrapper.addEventListener('touchstart', startCrop, { passive: false });
+
+    function startCrop(e) {
+      e.preventDefault();
+      canvasDisplayRect = cropCanvas.getBoundingClientRect();
+      const pos = getEventPos(e);
+      cropStartX = pos.x;
+      cropStartY = pos.y;
+      cropEndX = pos.x;
+      cropEndY = pos.y;
+      isCropping = true;
+      cropRect.style.display = 'block';
+      updateCropRect();
+    }
+
+    document.addEventListener('mousemove', moveCrop);
+    document.addEventListener('touchmove', moveCrop, { passive: false });
+
+    function moveCrop(e) {
+      if (!isCropping) return;
+      e.preventDefault();
+      const pos = getEventPos(e);
+      cropEndX = pos.x;
+      cropEndY = pos.y;
+      updateCropRect();
+    }
+
+    document.addEventListener('mouseup', endCrop);
+    document.addEventListener('touchend', endCrop);
+
+    function endCrop() {
+      isCropping = false;
+    }
+
+    function updateCropRect() {
+      if (!canvasDisplayRect) return;
+      const x1 = Math.min(cropStartX, cropEndX);
+      const y1 = Math.min(cropStartY, cropEndY);
+      const x2 = Math.max(cropStartX, cropEndX);
+      const y2 = Math.max(cropStartY, cropEndY);
+
+      cropRect.style.left = x1 + 'px';
+      cropRect.style.top = y1 + 'px';
+      cropRect.style.width = (x2 - x1) + 'px';
+      cropRect.style.height = (y2 - y1) + 'px';
+    }
+
+    cropConfirm.addEventListener('click', () => {
+      if (!canvasDisplayRect || !currentImageEl) {
+        closeCropOverlay();
+        return;
+      }
+
+      const x1 = Math.min(cropStartX, cropEndX);
+      const y1 = Math.min(cropStartY, cropEndY);
+      const x2 = Math.max(cropStartX, cropEndX);
+      const y2 = Math.max(cropStartY, cropEndY);
+
+      // Convert screen coords to canvas coords
+      const scaleX = cropCanvas.width / canvasDisplayRect.width;
+      const scaleY = cropCanvas.height / canvasDisplayRect.height;
+
+      const cx1 = Math.max(0, (x1 - canvasDisplayRect.left) * scaleX);
+      const cy1 = Math.max(0, (y1 - canvasDisplayRect.top) * scaleY);
+      const cw = Math.min(cropCanvas.width - cx1, (x2 - x1) * scaleX);
+      const ch = Math.min(cropCanvas.height - cy1, (y2 - y1) * scaleY);
+
+      if (cw < 10 || ch < 10) {
+        // Selection too small, use full image
+        closeCropOverlay();
+        return;
+      }
+
+      // Extract cropped region from original image (not from display canvas)
+      const imgW = currentImageEl.naturalWidth || currentImageEl.width;
+      const imgH = currentImageEl.naturalHeight || currentImageEl.height;
+      const canvasToImgX = imgW / cropCanvas.width;
+      const canvasToImgY = imgH / cropCanvas.height;
+
+      const srcX = cx1 * canvasToImgX;
+      const srcY = cy1 * canvasToImgY;
+      const srcW = cw * canvasToImgX;
+      const srcH = ch * canvasToImgY;
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = srcW;
+      outCanvas.height = srcH;
+      const outCtx = outCanvas.getContext('2d');
+      outCtx.drawImage(currentImageEl, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+      // Create a new Image from cropped region
+      const croppedDataUrl = outCanvas.toDataURL();
+      const croppedImg = new Image();
+      croppedImg.onload = () => {
+        // Update preview
+        previewImg.src = croppedDataUrl;
+
+        closeCropOverlay();
+
+        // Run OCR on cropped image
+        const imageToOCR = preprocessToggle.checked
+          ? preprocessImage(croppedImg)
+          : croppedDataUrl;
+        runOCR(imageToOCR);
+      };
+      croppedImg.src = croppedDataUrl;
+    });
+
+    // =========================================
+    // OCR (#7 改善: プログレス表示改善、失敗時フォールバック)
+    // =========================================
+    async function runOCR(imageData) {
+      // Show progress
+      progressContainer.classList.add('visible');
+      searchSection.classList.remove('visible');
+      ocrFallback.classList.remove('visible');
+      updateProgress(0, '初期化中...');
+
+      try {
+        const result = await Tesseract.recognize(imageData, 'jpn', {
+          logger: m => {
+            if (m.status === 'loading tesseract core') {
+              updateProgress(5, 'エンジン読み込み中...');
+            } else if (m.status === 'initializing tesseract') {
+              updateProgress(10, '初期化中...');
+            } else if (m.status === 'loading language traineddata') {
+              updateProgress(20, '日本語モデル読み込み中...');
+            } else if (m.status === 'initializing api') {
+              updateProgress(30, 'API初期化中...');
+            } else if (m.status === 'recognizing text') {
+              const pct = 30 + Math.round(m.progress * 70);
+              updateProgress(pct, '文字認識中...');
+            }
+          }
+        });
+
+        const text = result.data.text.trim();
+        progressContainer.classList.remove('visible');
+
+        if (text && text.length > 0) {
+          searchSection.classList.add('visible');
+          searchInput.value = text;
+          searchInput.focus();
+          // Auto-search if we got text
+          doSearch();
+        } else {
+          // 認識失敗 (#7)
+          ocrFallback.classList.add('visible');
+        }
+      } catch (err) {
+        console.error('OCR エラー:', err);
+        progressContainer.classList.remove('visible');
+        // OCRエラー時にフォールバック表示 (#7)
+        ocrFallback.classList.add('visible');
+      }
+    }
+
+    function updateProgress(pct, step) {
+      progressLabel.textContent = `文字認識中... ${pct}%`;
+      progressBar.style.width = `${pct}%`;
+      if (step) {
+        progressStep.textContent = step;
+      }
+    }
+
+    // =========================================
+    // Search
+    // =========================================
+    btnSearch.addEventListener('click', () => {
+      doSearch();
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        doSearch();
+      }
+    });
+
+    function doSearch() {
+      const query = searchInput.value.trim();
+      if (!query) return;
+
+      const results = searchByName(query);
+      renderResults(query, results);
+    }
+
+    function searchByName(query) {
+      if (!query) return [];
+
+      const normalizedQuery = normalize(query);
+
+      // Split query into words for partial matching
+      const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0);
+
+      return properties.filter(p => {
+        if (!p.property_name) return false;
+        const normalizedName = normalize(p.property_name);
+
+        // Direct substring match
+        if (normalizedName.includes(normalizedQuery) || normalizedQuery.includes(normalizedName)) {
+          return true;
+        }
+
+        // Word-based matching: at least one word with 2+ chars matches
+        if (queryWords.length > 1) {
+          return queryWords.some(word => word.length >= 2 && normalizedName.includes(word));
+        }
+
+        return false;
+      }).slice(0, 20);
+    }
+
+    function normalize(str) {
+      // Full-width alphanumerics & spaces -> half-width, then lowercase
+      return str
+        .replace(/[\uff01-\uff5e]/g, ch =>
+          String.fromCharCode(ch.charCodeAt(0) - 0xfee0)
+        )
+        .replace(/\u3000/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    }
+
+    // =========================================
+    // Render results
+    // =========================================
+    function renderResults(query, results) {
+      resultsSection.innerHTML = '';
+      resultsSection.classList.add('visible');
+
+      if (results.length === 0) {
+        resultsSection.innerHTML = `
+          <div class="no-results">
+            <div class="no-results-text">
+              「${escapeHtml(query)}」に一致する物件が見つかりませんでした
+            </div>
+            <a class="ddg-btn" href="https://duckduckgo.com/?q=${encodeURIComponent(query + ' 賃貸')}" target="_blank" rel="noopener">
+              &#x1F50D; DuckDuckGo で検索
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      const header = document.createElement('div');
+      header.className = 'results-header';
+      header.textContent = `${results.length}件の物件が見つかりました`;
+      resultsSection.appendChild(header);
+
+      results.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'property-card';
+
+        const feeText = p.fee_man > 0 ? `<span class="fee">(管理費 ${p.fee_man}万)</span>` : '';
+
+        const buildingAge = S.parseBuildingAge(p.building_year);
+        const buildingAgeText = buildingAge !== null ? `築${buildingAge}年` : '-';
+
+        const areaText = p.total_floor_area ? `${p.total_floor_area}m&sup2;` : '-';
+        const floorPlanText = p.floor_plan || '-';
+        const stationText = p.station_name
+          ? `${p.station_name}駅 徒歩${p.station_distance_min}分`
+          : '-';
+
+        // Determine link URL and label
+        let linkHtml = '';
+        if (p.detail_url) {
+          const isSuumo = p.detail_url.includes('suumo');
+          const linkLabel = isSuumo ? 'SUUMO で詳細を見る' : '詳細を見る';
+          linkHtml = `<a class="property-link" href="${escapeHtml(p.detail_url)}" target="_blank" rel="noopener">${linkLabel}</a>`;
+        }
+
+        card.innerHTML = `
+          <div class="property-name">${escapeHtml(p.property_name || '名称不明')}</div>
+          <div class="property-rent">
+            ${p.rent_man}<span class="unit">万円/月</span>
+            ${feeText}
+          </div>
+          <div class="property-details">
+            <div class="detail-row">
+              <span class="detail-label">間取り</span>
+              <span class="detail-value">${escapeHtml(floorPlanText)}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">面積</span>
+              <span class="detail-value">${areaText}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">築年数</span>
+              <span class="detail-value">${buildingAgeText}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">最寄駅</span>
+              <span class="detail-value">${escapeHtml(stationText)}</span>
+            </div>
+          </div>
+          ${linkHtml}
+        `;
+        resultsSection.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      return S.escapeHtml(str);
+    }
+
+    // 手動入力は手動入力ボタンかOCR結果表示時に表示される
+  </script>
+
+</body>
+</html>

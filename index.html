@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>物件サーチ</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <h1>物件サーチ</h1>
+    <span id="stats" class="header-stats">読込中...</span>
+    <div class="header-actions">
+      <button id="btn-favorites" class="header-btn header-btn-text" title="お気に入り">&#x2605; お気に入り（0件）</button>
+      <button id="btn-poi-toggle" class="header-btn header-btn-text" title="周辺施設">周辺施設</button>
+      <button id="btn-font-size" class="header-btn font-size-btn" title="フォントサイズ切替">Aa</button>
+      <button id="btn-heatmap" class="header-btn" title="家賃分布">&#x1f321;</button>
+      <button id="btn-filter" class="header-btn" title="フィルター">&#x2699;</button>
+    </div>
+  </header>
+
+  <!-- 駅名検索バー (#2) -->
+  <div class="station-search-wrapper">
+    <span class="station-search-icon">&#x1F50D;</span>
+    <input type="text" id="station-search" class="station-search-bar" placeholder="駅名で検索..." autocomplete="off">
+    <div id="station-suggestions" class="station-suggestions"></div>
+  </div>
+
+  <!-- 地図 -->
+  <div id="map"></div>
+
+  <!-- フィルター オーバーレイ -->
+  <div id="filter-overlay" class="filter-overlay"></div>
+
+  <!-- フィルターパネル (#5 ボトムシート化) -->
+  <div id="filter-panel" class="filter-panel">
+    <div class="filter-handle"></div>
+    <div class="filter-content">
+
+      <!-- 家賃帯 -->
+      <div class="filter-section">
+        <div class="filter-section-title"><span class="icon">&#x00A5;</span> 家賃</div>
+        <div class="range-group">
+          <div class="range-value" id="rent-range-label">8万 〜 25万</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="range" id="rent-min" min="8" max="25" step="0.5" value="8">
+            <span style="color:#94a3b8;">〜</span>
+            <input type="range" id="rent-max" min="8" max="25" step="0.5" value="25">
+          </div>
+          <div class="range-labels"><span>8万</span><span>25万</span></div>
+        </div>
+      </div>
+
+      <!-- 間取り -->
+      <div class="filter-section">
+        <div class="filter-section-title"><span class="icon">&#x25A3;</span> 間取り</div>
+        <div class="checkbox-grid" id="floor-plan-grid">
+          <label><input type="checkbox" value="1K" checked>1K</label>
+          <label><input type="checkbox" value="1DK" checked>1DK</label>
+          <label><input type="checkbox" value="1LDK" checked>1LDK</label>
+          <label><input type="checkbox" value="2K" checked>2K</label>
+          <label><input type="checkbox" value="2DK" checked>2DK</label>
+          <label><input type="checkbox" value="2LDK" checked>2LDK</label>
+        </div>
+      </div>
+
+      <!-- エリア -->
+      <div class="filter-section">
+        <div class="filter-section-title"><span class="icon">&#x1f4cd;</span> エリア</div>
+        <div class="checkbox-grid" id="area-grid">
+          <label><input type="checkbox" value="目黒区" checked>目黒区</label>
+          <label><input type="checkbox" value="世田谷区" checked>世田谷区</label>
+          <label><input type="checkbox" value="渋谷区" checked>渋谷区</label>
+          <label><input type="checkbox" value="新宿区" checked>新宿区</label>
+          <label><input type="checkbox" value="中野区" checked>中野区</label>
+          <label><input type="checkbox" value="杉並区" checked>杉並区</label>
+        </div>
+      </div>
+
+      <!-- 駅徒歩 -->
+      <div class="filter-section">
+        <div class="filter-section-title"><span class="icon">&#x1f6b6;</span> 駅徒歩</div>
+        <div class="range-group">
+          <div class="range-value" id="walk-label">20分以内</div>
+          <input type="range" id="walk-max" min="1" max="20" step="1" value="20">
+          <div class="range-labels"><span>1分</span><span>20分</span></div>
+        </div>
+      </div>
+
+      <!-- 半径検索 -->
+      <div class="filter-section">
+        <div class="filter-section-title"><span class="icon">&#x25CE;</span> 現在地からの半径</div>
+        <div class="radius-group">
+          <button class="radius-btn" data-radius="0">OFF</button>
+          <button class="radius-btn" data-radius="500">500m</button>
+          <button class="radius-btn" data-radius="1000">1km</button>
+          <button class="radius-btn" data-radius="2000">2km</button>
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div class="filter-apply-row">
+        <button id="btn-reset" class="btn-reset">リセット</button>
+        <button id="btn-apply" class="btn-apply">適用する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 凡例 -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> 8〜12万</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span> 12〜16万</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#eab308;"></span> 16〜20万</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> 20万超</div>
+  </div>
+
+  <!-- ヒートマップ凡例 (#9) -->
+  <div id="heatmap-legend" class="heatmap-legend">
+    <div class="heatmap-legend-title">家賃分布</div>
+    <div class="heatmap-legend-bar"></div>
+    <div class="heatmap-legend-labels"><span>低</span><span>高</span></div>
+  </div>
+
+  <!-- 件数バッジ (#3) -->
+  <div id="count-badge" class="count-badge">
+    <span id="count-badge-text">0件表示中</span>
+    <button id="count-badge-reset" class="count-badge-reset">リセット</button>
+  </div>
+
+  <!-- 現在地ボタン -->
+  <button id="fab-locate" class="fab-locate" title="現在地へ移動">&#x1F4CD;</button>
+
+  <!-- 固定タブバー (#1) -->
+  <nav class="tab-bar tab-bar-5">
+    <a href="index.html" class="tab-bar-item active">
+      <span class="tab-icon">&#x1F5FA;</span>
+      <span class="tab-label">地図</span>
+    </a>
+    <a href="ocr.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4F7;</span>
+      <span class="tab-label">カメラ</span>
+    </a>
+    <a href="diagnose.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4B0;</span>
+      <span class="tab-label">診断</span>
+    </a>
+    <a href="deals.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F525;</span>
+      <span class="tab-label">お得</span>
+    </a>
+    <a href="market.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4CA;</span>
+      <span class="tab-label">相場</span>
+    </a>
+  </nav>
+
+  <!-- お気に入りモーダル -->
+  <div id="fav-modal-overlay" class="fav-modal-overlay"></div>
+  <div id="fav-modal" class="fav-modal">
+    <div class="fav-modal-header">
+      <h2 id="fav-modal-title">&#x2605; お気に入り（0件）</h2>
+      <button id="fav-modal-close" class="fav-modal-close">&times;</button>
+    </div>
+    <div class="fav-modal-body" id="fav-modal-body">
+      <div class="fav-modal-empty">お気に入りがありません</div>
+    </div>
+    <div class="fav-modal-footer">
+      <button id="fav-clear-all" class="fav-clear-all">全てクリア</button>
+    </div>
+  </div>
+
+  <!-- チュートリアルオーバーレイ -->
+  <div id="tutorial-overlay" class="tutorial-overlay">
+    <div class="tutorial-card">
+      <div class="tutorial-step-indicator" id="tutorial-dots"></div>
+      <div class="tutorial-icon" id="tutorial-icon"></div>
+      <div class="tutorial-text" id="tutorial-text"></div>
+      <div class="tutorial-actions">
+        <button id="tutorial-skip" class="tutorial-btn-skip">スキップ</button>
+        <button id="tutorial-next" class="tutorial-btn-next">次へ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <!-- App JS -->
+  <script src="js/shared.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

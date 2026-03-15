@@ -1,0 +1,24 @@
+{
+  "name": "物件サーチ",
+  "short_name": "物件サーチ",
+  "description": "地図・カメラ・家賃診断・割安物件・エリア相場の統合物件探索アプリ",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1976D2",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

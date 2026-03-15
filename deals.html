@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>お得物件 - 物件サーチ</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body class="page-body">
+
+  <!-- ヘッダー -->
+  <header class="header page-header">
+    <h1>物件サーチ</h1>
+    <div class="header-actions">
+      <button id="btn-font-size" class="header-btn font-size-btn" title="フォントサイズ切替">Aa</button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="page-content">
+    <div class="page-title-bar">
+      <span class="page-title-icon">&#x1F525;</span>
+      <h2 class="page-title">お得物件ランキング</h2>
+    </div>
+    <p class="page-subtitle">相場より安い物件を割安度順にランキング表示</p>
+
+    <!-- フィルター -->
+    <div class="filter-bar">
+      <select id="deals-area" class="form-select">
+        <option value="">全エリア</option>
+        <option value="新宿区">新宿区</option>
+        <option value="渋谷区">渋谷区</option>
+        <option value="目黒区">目黒区</option>
+        <option value="世田谷区">世田谷区</option>
+        <option value="中野区">中野区</option>
+        <option value="杉並区">杉並区</option>
+      </select>
+      <input type="number" id="deals-rent-max" class="form-input" placeholder="家賃上限(万)" min="5" max="30" step="0.5">
+      <select id="deals-plan" class="form-select">
+        <option value="">全間取り</option>
+        <option value="1K">1K</option>
+        <option value="1DK">1DK</option>
+        <option value="1LDK">1LDK</option>
+        <option value="2K">2K</option>
+        <option value="2DK">2DK</option>
+        <option value="2LDK">2LDK</option>
+      </select>
+    </div>
+
+    <!-- 件数 -->
+    <div id="deals-count" class="deals-count"></div>
+
+    <!-- リスト -->
+    <div id="deals-list">
+      <div class="loading-msg">データを読み込んでいます...</div>
+    </div>
+  </main>
+
+  <!-- 固定タブバー -->
+  <nav class="tab-bar tab-bar-5">
+    <a href="index.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F5FA;</span>
+      <span class="tab-label">地図</span>
+    </a>
+    <a href="ocr.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4F7;</span>
+      <span class="tab-label">カメラ</span>
+    </a>
+    <a href="diagnose.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4B0;</span>
+      <span class="tab-label">診断</span>
+    </a>
+    <a href="deals.html" class="tab-bar-item active">
+      <span class="tab-icon">&#x1F525;</span>
+      <span class="tab-label">お得</span>
+    </a>
+    <a href="market.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4CA;</span>
+      <span class="tab-label">相場</span>
+    </a>
+  </nav>
+
+  <!-- 共通JS -->
+  <script src="js/shared.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var S = window.BukkenShared;
+
+    // フォントサイズ初期化
+    S.initFontSize();
+    var btnFont = document.getElementById('btn-font-size');
+    if (btnFont) btnFont.addEventListener('click', S.cycleFontSize);
+
+    // お気に入り管理（localStorageのbukken-favoritesと連携）
+    var FAV_KEY = 'bukken-favorites';
+
+    function getFavorites() {
+      try {
+        return JSON.parse(localStorage.getItem(FAV_KEY)) || [];
+      } catch (e) { return []; }
+    }
+
+    function saveFavorites(favs) {
+      localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+    }
+
+    function isFavorite(id) {
+      return getFavorites().indexOf(id) !== -1;
+    }
+
+    function toggleFavorite(id) {
+      var favs = getFavorites();
+      var idx = favs.indexOf(id);
+      if (idx === -1) {
+        favs.push(id);
+      } else {
+        favs.splice(idx, 1);
+      }
+      saveFavorites(favs);
+      return idx === -1;
+    }
+
+    // データ
+    var allDeals = [];
+    var allProperties = [];
+
+    // データ読み込み・お得度計算
+    S.loadProperties().then(function (data) {
+      allProperties = data;
+      computeDeals();
+      renderDeals();
+    });
+
+    function computeDeals() {
+      // 区・間取り別にグループ化
+      var groups = {};
+      allProperties.forEach(function (p) {
+        if (p.municipality == null || p.floor_plan_norm == null) return;
+        if (p.monthly_rent == null || p.monthly_rent <= 0) return;
+        var key = p.municipality + '|' + p.floor_plan_norm;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+      });
+
+      // 各物件の「期待家賃」を算出
+      allProperties.forEach(function (p) {
+        p.expectedRent = null;
+        p.discount = null;
+        if (p.municipality == null || p.floor_plan_norm == null) return;
+        if (p.monthly_rent == null || p.monthly_rent <= 0) return;
+
+        var key = p.municipality + '|' + p.floor_plan_norm;
+        var group = groups[key];
+        if (!group) return;
+
+        // 自分を除いた中央値
+        var others = group.filter(function (q) { return q.id !== p.id; });
+        if (others.length < 3) return;
+
+        var rents = others.map(function (q) { return q.monthly_rent; });
+        p.expectedRent = S.median(rents);
+        if (p.expectedRent > 0) {
+          p.discount = ((p.expectedRent - p.monthly_rent) / p.expectedRent) * 100;
+        }
+      });
+
+      // 割安順にソート（discount > 5%のみ）
+      allDeals = allProperties
+        .filter(function (p) { return p.discount != null && p.discount > 5; })
+        .sort(function (a, b) { return b.discount - a.discount; });
+    }
+
+    // フィルター要素
+    var elArea = document.getElementById('deals-area');
+    var elRentMax = document.getElementById('deals-rent-max');
+    var elPlan = document.getElementById('deals-plan');
+
+    elArea.addEventListener('change', renderDeals);
+    elRentMax.addEventListener('input', renderDeals);
+    elPlan.addEventListener('change', renderDeals);
+
+    function renderDeals() {
+      var filterArea = elArea.value;
+      var filterRentMax = parseFloat(elRentMax.value);
+      var filterPlan = elPlan.value;
+
+      var filtered = allDeals.filter(function (p) {
+        if (filterArea && p.municipality !== filterArea) return false;
+        if (!isNaN(filterRentMax) && filterRentMax > 0 && p.monthly_rent > filterRentMax * 10000) return false;
+        if (filterPlan && p.floor_plan_norm !== filterPlan) return false;
+        return true;
+      });
+
+      // 最大30件
+      var display = filtered.slice(0, 30);
+
+      // 件数表示
+      var countEl = document.getElementById('deals-count');
+      if (filtered.length === 0) {
+        countEl.innerHTML = '該当する物件がありません';
+      } else {
+        countEl.innerHTML = '<strong>' + filtered.length + '</strong>件中 <strong>' + display.length + '</strong>件表示';
+      }
+
+      // カード描画
+      var listEl = document.getElementById('deals-list');
+      if (display.length === 0) {
+        listEl.innerHTML = '<div class="empty-msg">条件に合うお得物件が見つかりませんでした。<br>フィルターを変更してみてください。</div>';
+        return;
+      }
+
+      var html = '';
+      display.forEach(function (p, i) {
+        var rentMan = (p.monthly_rent / 10000).toFixed(1);
+        var expectedMan = (p.expectedRent / 10000).toFixed(1);
+        var diffMan = ((p.expectedRent - p.monthly_rent) / 10000).toFixed(1);
+        var discountPct = p.discount.toFixed(0);
+        var ageStr = p.building_age != null ? '築' + p.building_age + '年' : '';
+        var areaStr = p.total_floor_area != null ? p.total_floor_area + 'm²' : '';
+        var stationStr = '';
+        if (p.station_name) {
+          stationStr = p.station_name;
+          if (p.station_distance_min != null) stationStr += ' 徒歩' + p.station_distance_min + '分';
+        }
+        var fav = isFavorite(p.id);
+        var favClass = fav ? ' saved' : '';
+        var favLabel = fav ? '★ 保存済' : '☆ 保存';
+
+        html += '<div class="deal-card" data-id="' + p.id + '">';
+
+        // ヘッダー行
+        html += '<div class="deal-card-header">';
+        html += '<span class="deal-rank">#' + (i + 1) + '</span>';
+        html += '<span class="deal-badge">' + discountPct + '%お得</span>';
+        html += '<span class="deal-name">' + S.escapeHtml(p.property_name) + '</span>';
+        html += '</div>';
+
+        // 家賃行
+        html += '<div class="deal-rent-row">';
+        html += '<span class="deal-rent">' + rentMan + '<small>万円</small></span>';
+        html += '<span class="deal-diff">相場 ' + expectedMan + '万 / -' + diffMan + '万円お得</span>';
+        html += '</div>';
+
+        // 情報行
+        html += '<div class="deal-info">';
+        if (p.floor_plan) html += '<span>' + S.escapeHtml(p.floor_plan) + '</span>';
+        if (areaStr) html += '<span>' + areaStr + '</span>';
+        if (ageStr) html += '<span>' + ageStr + '</span>';
+        if (stationStr) html += '<span>' + S.escapeHtml(stationStr) + '</span>';
+        if (p.municipality) html += '<span>' + S.escapeHtml(p.municipality) + '</span>';
+        html += '</div>';
+
+        // アクションボタン
+        html += '<div class="deal-actions">';
+        if (p.detail_url) {
+          html += '<a href="' + S.escapeHtml(p.detail_url) + '" target="_blank" rel="noopener" class="deal-btn-link">SUUMO</a>';
+        }
+        html += '<button class="deal-btn-fav' + favClass + '" data-fav-id="' + p.id + '">' + favLabel + '</button>';
+        html += '<button class="deal-btn-share" data-share-idx="' + i + '">↗ 共有</button>';
+        html += '</div>';
+
+        html += '</div>';
+      });
+
+      listEl.innerHTML = html;
+
+      // お気に入りボタンイベント
+      listEl.querySelectorAll('.deal-btn-fav').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = parseInt(this.getAttribute('data-fav-id'), 10);
+          var added = toggleFavorite(id);
+          this.classList.toggle('saved', added);
+          this.textContent = added ? '★ 保存済' : '☆ 保存';
+        });
+      });
+
+      // 共有ボタンイベント（Web Share API）
+      listEl.querySelectorAll('.deal-btn-share').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var idx = parseInt(this.getAttribute('data-share-idx'), 10);
+          var item = display[idx];
+          if (!item) return;
+          var text = item.property_name + '\n'
+            + (item.monthly_rent / 10000).toFixed(1) + '万円（相場より' + item.discount.toFixed(0) + '%お得）\n'
+            + (item.detail_url || '');
+          if (navigator.share) {
+            navigator.share({ title: item.property_name, text: text, url: item.detail_url || '' }).catch(function () {});
+          } else {
+            navigator.clipboard.writeText(text).then(function () {
+              alert('クリップボードにコピーしました');
+            }).catch(function () {
+              alert('共有できませんでした');
+            });
+          }
+        });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

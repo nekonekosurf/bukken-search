@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#1976D2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>相場 - 物件サーチ</title>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+
+  <style>
+    /* ---- Main Content ---- */
+    .main-content {
+      padding: 60px 16px calc(72px + env(safe-area-inset-bottom));
+      max-width: 600px;
+      margin: 0 auto;
+      overflow-y: auto;
+    }
+
+    /* ---- Section ---- */
+    .section {
+      padding: 16px 12px;
+    }
+
+    .section-title {
+      font-size: calc(16px * var(--font-scale));
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title .icon {
+      font-size: calc(18px * var(--font-scale));
+    }
+
+    /* ---- 相場テーブル ---- */
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .market-table {
+      width: 100%;
+      min-width: 480px;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .market-table th,
+    .market-table td {
+      padding: 8px 6px;
+      text-align: center;
+      white-space: nowrap;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .market-table th {
+      background: #1976D2;
+      color: #fff;
+      font-weight: 700;
+      font-size: calc(11px * var(--font-scale));
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .market-table th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: #1565C0;
+    }
+
+    .market-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: #f8fafc;
+      font-weight: 700;
+      color: #1976D2;
+      font-size: calc(12px * var(--font-scale));
+      z-index: 1;
+      border-right: 1px solid #e2e8f0;
+    }
+
+    .market-table tbody tr:hover {
+      background: #eff6ff;
+    }
+
+    .market-table td.no-data {
+      color: #cbd5e1;
+      font-size: calc(11px * var(--font-scale));
+    }
+
+    /* ---- シミュレーション ---- */
+    .sim-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .sim-control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .sim-control-group label {
+      font-size: calc(12px * var(--font-scale));
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .sim-control-group select,
+    .sim-control-group input {
+      height: 48px;
+      padding: 0 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #fff;
+      font-size: calc(15px * var(--font-scale));
+      font-family: inherit;
+      color: #1e293b;
+      outline: none;
+      touch-action: manipulation;
+    }
+
+    .sim-control-group select:focus,
+    .sim-control-group input:focus {
+      border-color: #1976D2;
+      box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+    }
+
+    .sim-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .sim-table th,
+    .sim-table td {
+      padding: 10px 8px;
+      text-align: center;
+      white-space: nowrap;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .sim-table th {
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 700;
+      font-size: calc(11px * var(--font-scale));
+    }
+
+    .sim-table tr.current-row {
+      background: #e3f2fd;
+      font-weight: 700;
+    }
+
+    .sim-table tr.current-row td {
+      color: #1976D2;
+    }
+
+    .sim-table td.budget-cell {
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .sim-table .arrow-marker {
+      font-size: calc(11px * var(--font-scale));
+      color: #1976D2;
+      margin-left: 2px;
+    }
+
+    /* ---- 妥協ポイント ---- */
+    .compromise-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .compromise-title {
+      font-size: calc(14px * var(--font-scale));
+      font-weight: 700;
+      color: #e53935;
+      margin-bottom: 12px;
+    }
+
+    .compromise-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: calc(13px * var(--font-scale));
+      line-height: 1.6;
+    }
+
+    .compromise-item:last-child {
+      border-bottom: none;
+    }
+
+    .compromise-item .bullet {
+      color: #1976D2;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .compromise-item .diff {
+      color: #e53935;
+      font-weight: 600;
+    }
+
+    .compromise-item .change {
+      color: #64748b;
+      font-size: calc(12px * var(--font-scale));
+    }
+
+    .compromise-empty {
+      color: #94a3b8;
+      font-size: calc(13px * var(--font-scale));
+      text-align: center;
+      padding: 16px;
+    }
+
+    /* ---- Loading ---- */
+    .loading {
+      text-align: center;
+      padding: 40px 16px;
+      color: #94a3b8;
+      font-size: calc(14px * var(--font-scale));
+    }
+
+    .loading .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #1976D2;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="page-body">
+
+  <!-- ヘッダー -->
+  <header class="header page-header">
+    <h1>物件サーチ</h1>
+    <div class="header-actions">
+      <button id="btn-font-size" class="header-btn" title="フォントサイズ切替">Aa</button>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+
+    <!-- セクション1: エリア相場テーブル -->
+    <div class="section">
+      <div class="section-title">
+        <span class="icon">&#x1F4CA;</span>
+        エリア×間取り 家賃中央値
+      </div>
+      <div id="market-table-area" class="loading">
+        <div class="spinner"></div>
+        <div>データ読み込み中...</div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- セクション2: +1万円シミュレーション -->
+    <div class="section">
+      <div class="section-title">
+        <span class="icon">&#x1F4B0;</span>
+        +1万円シミュレーション
+      </div>
+
+      <div class="sim-controls">
+        <div class="sim-control-group">
+          <label for="sim-area">エリア</label>
+          <select id="sim-area">
+            <option value="全体">全体</option>
+            <option value="新宿区">新宿区</option>
+            <option value="渋谷区">渋谷区</option>
+            <option value="目黒区">目黒区</option>
+            <option value="世田谷区">世田谷区</option>
+            <option value="中野区">中野区</option>
+            <option value="杉並区">杉並区</option>
+          </select>
+        </div>
+        <div class="sim-control-group">
+          <label for="sim-budget">現在の予算（万円）</label>
+          <input type="number" id="sim-budget" value="12" min="5" max="30" step="0.5">
+        </div>
+      </div>
+
+      <div id="sim-table-area" class="loading">
+        <div class="spinner"></div>
+        <div>計算中...</div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- セクション3: 妥協ポイント分析 -->
+    <div class="section">
+      <div class="section-title">
+        <span class="icon">&#x1F914;</span>
+        妥協ポイント分析
+      </div>
+      <div id="compromise-area" class="loading">
+        <div class="spinner"></div>
+        <div>分析中...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 固定タブバー -->
+  <nav class="tab-bar tab-bar-5">
+    <a href="index.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F5FA;</span>
+      <span class="tab-label">地図</span>
+    </a>
+    <a href="ocr.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4F7;</span>
+      <span class="tab-label">カメラ</span>
+    </a>
+    <a href="diagnose.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F4B0;</span>
+      <span class="tab-label">診断</span>
+    </a>
+    <a href="deals.html" class="tab-bar-item">
+      <span class="tab-icon">&#x1F525;</span>
+      <span class="tab-label">お得</span>
+    </a>
+    <a href="market.html" class="tab-bar-item active">
+      <span class="tab-icon">&#x1F4CA;</span>
+      <span class="tab-label">相場</span>
+    </a>
+  </nav>
+
+  <!-- 共通モジュール -->
+  <script src="js/shared.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var S = window.BukkenShared;
+    var allData = [];
+
+    // ---- 初期化 ----
+    function init() {
+      S.initFontSize();
+      document.getElementById('btn-font-size').addEventListener('click', S.cycleFontSize);
+
+      S.loadProperties().then(function (data) {
+        allData = data;
+        renderMarketTable();
+        renderSimulation();
+        renderCompromise();
+      });
+
+      // リアルタイム更新
+      document.getElementById('sim-area').addEventListener('change', function () {
+        renderSimulation();
+        renderCompromise();
+      });
+      document.getElementById('sim-budget').addEventListener('input', function () {
+        renderSimulation();
+        renderCompromise();
+      });
+
+      registerSW();
+    }
+
+    // ==============================
+    // セクション1: エリア×間取り 相場テーブル
+    // ==============================
+    function renderMarketTable() {
+      var areas = S.AREAS;
+      var plans = S.PLANS;
+
+      // 区×間取りの家賃中央値を計算
+      var table = {};
+      allData.forEach(function (p) {
+        var plan = S.normalizePlan(p.floor_plan);
+        if (!plan || plans.indexOf(plan) === -1) return;
+        var muni = p.municipality;
+        if (!muni || areas.indexOf(muni) === -1) return;
+
+        var key = muni + '_' + plan;
+        if (p.rent_man == null) return;
+        if (!table[key]) table[key] = [];
+        table[key].push(p.rent_man);
+      });
+
+      // HTMLテーブル生成
+      var html = '<div class="table-scroll"><table class="market-table">';
+      html += '<thead><tr><th></th>';
+      plans.forEach(function (plan) {
+        html += '<th>' + plan + '</th>';
+      });
+      html += '</tr></thead><tbody>';
+
+      areas.forEach(function (area) {
+        html += '<tr><td>' + S.escapeHtml(area) + '</td>';
+        plans.forEach(function (plan) {
+          var key = area + '_' + plan;
+          var rents = table[key] || [];
+          var med = S.median(rents);
+          if (med !== null) {
+            html += '<td>' + med.toFixed(1) + '万</td>';
+          } else {
+            html += '<td class="no-data">-</td>';
+          }
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+      document.getElementById('market-table-area').innerHTML = html;
+    }
+
+    // ==============================
+    // セクション2: +1万円シミュレーション
+    // ==============================
+    function renderSimulation() {
+      var municipality = document.getElementById('sim-area').value;
+      var budget = parseFloat(document.getElementById('sim-budget').value);
+      if (isNaN(budget) || budget <= 0) {
+        document.getElementById('sim-table-area').innerHTML =
+          '<div class="compromise-empty">予算を入力してください</div>';
+        return;
+      }
+
+      // 予算-2万 ~ +2万 の範囲で1万刻み
+      var rows = [];
+      for (var b = budget - 2; b <= budget + 2; b += 1) {
+        if (b <= 0) continue;
+        var stats = calcStats(allData, municipality, b, b + 1);
+        rows.push({
+          budget: b,
+          isCurrent: (Math.abs(b - budget) < 0.01),
+          count: stats.count,
+          avgArea: stats.avgArea,
+          avgAge: stats.avgAge,
+          avgWalk: stats.avgWalk
+        });
+      }
+
+      var html = '<table class="sim-table">';
+      html += '<thead><tr>';
+      html += '<th>予算</th><th>平均面積</th><th>平均築年</th><th>平均駅徒歩</th><th>物件数</th>';
+      html += '</tr></thead><tbody>';
+
+      rows.forEach(function (row) {
+        var rowClass = row.isCurrent ? ' class="current-row"' : '';
+        var marker = row.isCurrent ? '<span class="arrow-marker">&larr;</span>' : '';
+        html += '<tr' + rowClass + '>';
+        html += '<td class="budget-cell">' + row.budget.toFixed(0) + '万' + marker + '</td>';
+        html += '<td>' + (row.avgArea !== null ? row.avgArea.toFixed(1) + 'm&sup2;' : '-') + '</td>';
+        html += '<td>' + (row.avgAge !== null ? row.avgAge.toFixed(0) + '年' : '-') + '</td>';
+        html += '<td>' + (row.avgWalk !== null ? row.avgWalk.toFixed(0) + '分' : '-') + '</td>';
+        html += '<td>' + row.count + '件</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      document.getElementById('sim-table-area').innerHTML = html;
+    }
+
+    function calcStats(data, municipality, budgetMin, budgetMax) {
+      var filtered = data.filter(function (p) {
+        if (municipality !== '全体' && p.municipality !== municipality) return false;
+        if (p.rent_man == null) return false;
+        if (p.rent_man < budgetMin || p.rent_man >= budgetMax) return false;
+        return true;
+      });
+
+      var areas = [];
+      var ages = [];
+      var walks = [];
+
+      filtered.forEach(function (p) {
+        if (p.total_floor_area != null) areas.push(p.total_floor_area);
+        if (p.building_age != null) ages.push(p.building_age);
+        if (p.station_distance_min != null) walks.push(p.station_distance_min);
+      });
+
+      return {
+        count: filtered.length,
+        avgArea: S.mean(areas),
+        avgAge: S.mean(ages),
+        avgWalk: S.mean(walks)
+      };
+    }
+
+    // ==============================
+    // セクション3: 妥協ポイント分析
+    // ==============================
+    function renderCompromise() {
+      var municipality = document.getElementById('sim-area').value;
+      var budget = parseFloat(document.getElementById('sim-budget').value);
+      if (isNaN(budget) || budget <= 0) {
+        document.getElementById('compromise-area').innerHTML =
+          '<div class="compromise-empty">予算を入力してください</div>';
+        return;
+      }
+
+      var currentStats = calcStats(allData, municipality, budget, budget + 1);
+      var cheaperStats = calcStats(allData, municipality, budget - 1, budget);
+
+      // 両方にデータがないと比較できない
+      if (currentStats.count === 0 || cheaperStats.count === 0) {
+        document.getElementById('compromise-area').innerHTML =
+          '<div class="compromise-empty">比較データが不足しています</div>';
+        return;
+      }
+
+      var items = [];
+
+      // 面積差
+      if (currentStats.avgArea !== null && cheaperStats.avgArea !== null) {
+        var areaDiff = currentStats.avgArea - cheaperStats.avgArea;
+        items.push({
+          label: '面積',
+          diff: areaDiff.toFixed(1) + 'm\u00B2小さくする',
+          change: currentStats.avgArea.toFixed(1) + 'm\u00B2 \u2192 ' + cheaperStats.avgArea.toFixed(1) + 'm\u00B2'
+        });
+      }
+
+      // 築年差
+      if (currentStats.avgAge !== null && cheaperStats.avgAge !== null) {
+        var ageDiff = cheaperStats.avgAge - currentStats.avgAge;
+        items.push({
+          label: '築年数',
+          diff: ageDiff.toFixed(0) + '年古くする',
+          change: currentStats.avgAge.toFixed(0) + '年 \u2192 ' + cheaperStats.avgAge.toFixed(0) + '年'
+        });
+      }
+
+      // 駅徒歩差
+      if (currentStats.avgWalk !== null && cheaperStats.avgWalk !== null) {
+        var walkDiff = cheaperStats.avgWalk - currentStats.avgWalk;
+        items.push({
+          label: '駅徒歩',
+          diff: walkDiff.toFixed(0) + '分増やす',
+          change: currentStats.avgWalk.toFixed(0) + '分 \u2192 ' + cheaperStats.avgWalk.toFixed(0) + '分'
+        });
+      }
+
+      if (items.length === 0) {
+        document.getElementById('compromise-area').innerHTML =
+          '<div class="compromise-empty">比較データが不足しています</div>';
+        return;
+      }
+
+      var html = '<div class="compromise-card">';
+      html += '<div class="compromise-title">1万円安くするには...</div>';
+
+      items.forEach(function (item) {
+        html += '<div class="compromise-item">';
+        html += '<span class="bullet">&bull;</span>';
+        html += '<div>';
+        html += '<span class="diff">' + S.escapeHtml(item.label) + 'を' + S.escapeHtml(item.diff) + '</span>';
+        html += '<br><span class="change">(' + S.escapeHtml(item.change) + ')</span>';
+        html += '</div>';
+        html += '</div>';
+      });
+
+      html += '</div>';
+      document.getElementById('compromise-area').innerHTML = html;
+    }
+
+    // ---- SW登録 ----
+    function registerSW() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(function (err) {
+          console.warn('SW登録失敗:', err);
+        });
+      }
+    }
+
+    // ---- 起動 ----
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
+</body>
+</html>
