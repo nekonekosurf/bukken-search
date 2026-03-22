@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bukken-search-v6';
+const CACHE_NAME = 'bukken-search-v7';
 const ASSETS = [
   './',
   'index.html',
